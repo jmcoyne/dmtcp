@@ -110,17 +110,17 @@ __d_libdir__libdmtcp_pathvirt_so_LDADD = $(LDADD)
  #
 
  # FIXME:  ptrace plugin not yet working for aarch64
- if !AARCH64_HOST
- libdmtcp_PROGRAMS += $(d_libdir)/libdmtcp_ptrace.so
- __d_libdir__libdmtcp_ptrace_so_SOURCES =                               \
-    ptrace/ptrace.cpp                                              \
-    ptrace/ptrace.h                                                \
-    ptrace/ptraceinfo.cpp                                          \
-    ptrace/ptraceinfo.h                                            \
-    ptrace/ptracewrappers.cpp
- __d_libdir__libdmtcp_ptrace_so_LDFLAGS = $(dmtcp_ldflags)
- __d_libdir__libdmtcp_ptrace_so_LDADD = $(LDADD)
- endif
+if !AARCH64_HOST
+libdmtcp_PROGRAMS += $(d_libdir)/libdmtcp_ptrace.so
+__d_libdir__libdmtcp_ptrace_so_SOURCES =                               \
+   ptrace/ptrace.cpp                                              \
+   ptrace/ptrace.h                                                \
+   ptrace/ptraceinfo.cpp                                          \
+   ptrace/ptraceinfo.h                                            \
+   ptrace/ptracewrappers.cpp
+__d_libdir__libdmtcp_ptrace_so_LDFLAGS = $(dmtcp_ldflags)
+__d_libdir__libdmtcp_ptrace_so_LDADD = $(LDADD)
+endif
 
 #
 # Unique ckpt plugin
