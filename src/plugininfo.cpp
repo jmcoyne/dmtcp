@@ -31,7 +31,7 @@
 namespace dmtcp
 {
 PluginInfo::PluginInfo(const DmtcpPluginDescriptor_t &descr,
-                       const vector<BarrierInfo *> &_preCkptLocLBarriers,
+                       const vector<BarrierInfo *> &_preCkptBarriers,
                        const vector<BarrierInfo *> &_resumeBarriers,
                        const vector<BarrierInfo *> &_restartBarriers)
   : pluginName(descr.pluginName),
