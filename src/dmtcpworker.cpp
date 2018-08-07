@@ -20,9 +20,6 @@
  ****************************************************************************/
 
 #include "dmtcpworker.h"
-#include <stdlib.h>
-#include <sys/resource.h>
-#include <sys/time.h>
 #include "../jalib/jbuffer.h"
 #include "../jalib/jconvert.h"
 #include "../jalib/jfilesystem.h"
@@ -36,23 +33,33 @@
 #include "threadlist.h"
 #include "threadsync.h"
 #include "util.h"
+#include <stdlib.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 using namespace dmtcp;
 
-LIB_PRIVATE void pthread_atfork_prepare();
-LIB_PRIVATE void pthread_atfork_parent();
-LIB_PRIVATE void pthread_atfork_child();
+LIB_PRIVATE void
+pthread_atfork_prepare();
+LIB_PRIVATE void
+pthread_atfork_parent();
+LIB_PRIVATE void
+pthread_atfork_child();
 
-void pidVirt_pthread_atfork_child() __attribute__((weak));
+void
+pidVirt_pthread_atfork_child() __attribute__((weak));
 
 /* This is defined by newer gcc version unique for each module.  */
-extern void *__dso_handle __attribute__((__weak__,
-                                         __visibility__("hidden")));
+extern void* __dso_handle __attribute__((__weak__, __visibility__("hidden")));
 
-EXTERNC int __register_atfork(void (*prepare)(void), void (*parent)(
-                                void), void (*child)(void), void *dso_handle);
+EXTERNC int
+__register_atfork(void (*prepare)(void),
+                  void (*parent)(void),
+                  void (*child)(void),
+                  void* dso_handle);
 
-EXTERNC void *ibv_get_device_list(void *) __attribute__((weak));
+EXTERNC void*
+ibv_get_device_list(void*) __attribute__((weak));
 
 /* The following instance of the DmtcpWorker is just to trigger the constructor
  * to allow us to hijack the process
@@ -103,8 +110,8 @@ restoreUserLDPRELOAD()
   // exec("dmtcp_launch ... dmtcp_ssh ..."), and re-execute.
   // NOTE:  If the user called exec("dmtcp_nocheckpoint ..."), we will
   // reset LD_PRELOAD back to ENV_VAR_ORIG_LD_PRELOAD in dmtcp_nocheckpoint
-  char *preload = getenv("LD_PRELOAD");
-  char *userPreload = getenv(ENV_VAR_ORIG_LD_PRELOAD);
+  char* preload = getenv("LD_PRELOAD");
+  char* userPreload = getenv(ENV_VAR_ORIG_LD_PRELOAD);
 
   JASSERT(userPreload == NULL || strlen(userPreload) <= strlen(preload));
 
@@ -117,8 +124,9 @@ restoreUserLDPRELOAD()
 
     // setenv("LD_PRELOAD", userPreload, 1);
   }
-  JTRACE("LD_PRELOAD") (preload) (userPreload) (getenv(ENV_VAR_HIJACK_LIBS))
-    (getenv(ENV_VAR_HIJACK_LIBS_M32)) (getenv("LD_PRELOAD"));
+  JTRACE("LD_PRELOAD")
+  (preload)(userPreload)(getenv(ENV_VAR_HIJACK_LIBS))(
+    getenv(ENV_VAR_HIJACK_LIBS_M32))(getenv("LD_PRELOAD"));
 }
 
 // This should be visible to library only.  DmtcpWorker will call
@@ -134,8 +142,8 @@ int
 DmtcpWorker::determineCkptSignal()
 {
   int sig = CKPT_SIGNAL;
-  char *endp = NULL;
-  static const char *tmp = getenv(ENV_VAR_SIGCKPT);
+  char* endp = NULL;
+  static const char* tmp = getenv(ENV_VAR_SIGCKPT);
 
   if (tmp != NULL) {
     sig = strtol(tmp, &endp, 0);
@@ -175,9 +183,8 @@ dmtcp_prepare_atfork(void)
    * To fix it, we use __register_atfork and use the __dso_handle provided by
    * the gcc compiler.
    */
-  JASSERT(__register_atfork(NULL, NULL,
-                            pidVirt_pthread_atfork_child,
-                            __dso_handle) == 0);
+  JASSERT(__register_atfork(
+            NULL, NULL, pidVirt_pthread_atfork_child, __dso_handle) == 0);
 
   JASSERT(pthread_atfork(pthread_atfork_prepare,
                          pthread_atfork_parent,
@@ -192,13 +199,13 @@ getLogFilePath()
   o << "/proc/self/fd/" << PROTECTED_JASSERTLOG_FD;
   return jalib::Filesystem::ResolveSymlink(o.str());
 
-#else // ifdef LOGGING
+#else  // ifdef LOGGING
   return "";
 #endif // ifdef LOGGING
 }
 
 static void
-writeCurrentLogFileNameToPrevLogFile(string &path)
+writeCurrentLogFileNameToPrevLogFile(string& path)
 {
 #ifdef LOGGING
   ostringstream o;
@@ -247,7 +254,7 @@ prepareLogAndProcessdDataFromSerialFile()
 }
 
 static void
-segFaultHandler(int sig, siginfo_t *siginfo, void *context)
+segFaultHandler(int sig, siginfo_t* siginfo, void* context)
 {
   while (1) {
     sleep(1);
@@ -263,10 +270,10 @@ installSegFaultHandler()
   memset(&act, 0, sizeof(act));
   act.sa_sigaction = segFaultHandler;
   act.sa_flags = SA_SIGINFO;
-  JASSERT(sigaction(SIGSEGV, &act, NULL) == 0) (JASSERT_ERRNO);
+  JASSERT(sigaction(SIGSEGV, &act, NULL) == 0)(JASSERT_ERRNO);
 }
 
-static jalib::JBuffer *buf = NULL;
+static jalib::JBuffer* buf = NULL;
 
 // called before user main()
 // workerhijack.cpp initializes a static variable theInstance to DmtcpWorker obj
@@ -298,7 +305,7 @@ dmtcp_initialize()
   prepareLogAndProcessdDataFromSerialFile();
 
   JTRACE("libdmtcp.so:  Running ")
-    (jalib::Filesystem::GetProgramName()) (getenv("LD_PRELOAD"));
+  (jalib::Filesystem::GetProgramName())(getenv("LD_PRELOAD"));
 
   if (getenv("DMTCP_SEGFAULT_HANDLER") != NULL) {
     // Install a segmentation fault handler (for debugging).
@@ -312,15 +319,12 @@ dmtcp_initialize()
   // Also cache programName and arguments
   string programName = jalib::Filesystem::GetProgramName();
 
-  JASSERT(programName != "dmtcp_coordinator" &&
-          programName != "dmtcp_launch" &&
+  JASSERT(programName != "dmtcp_coordinator" && programName != "dmtcp_launch" &&
           programName != "dmtcp_nocheckpoint" &&
-          programName != "dmtcp_comand" &&
-          programName != "dmtcp_restart" &&
-          programName != "mtcp_restart" &&
-          programName != "rsh" &&
+          programName != "dmtcp_comand" && programName != "dmtcp_restart" &&
+          programName != "mtcp_restart" && programName != "rsh" &&
           programName != "ssh")
-    (programName).Text("This program should not be run under ckpt control");
+  (programName).Text("This program should not be run under ckpt control");
 
   ProcessInfo::instance().calculateArgvAndEnvSize();
   restoreUserLDPRELOAD();
@@ -462,20 +466,33 @@ DmtcpWorker::waitForSuspendMessage()
     _exit(0);
   }
 
-  JASSERT(msg.type == DMT_DO_SUSPEND) (msg.type);
-
+  JASSERT(msg.type == DMT_DO_SUSPEND)(msg.type);
+  _real_syscall(DMTCP_FAKE_SYSCALL);
   // Coordinator sends some computation information along with the SUSPEND
   // message. Extracting that.
   SharedData::updateGeneration(msg.compGroup.computationGeneration());
   JASSERT(SharedData::getCompId() == msg.compGroup.upid())
-    (SharedData::getCompId()) (msg.compGroup);
+  (SharedData::getCompId())(msg.compGroup);
 
   _exitAfterCkpt = msg.exitAfterCkpt;
 }
 void
-DmtcpWorker::preSuspendUserThread(){
+DmtcpWorker::preSuspendUserThread()
+{
   ThreadSync::incrNumUserThreads();
   PluginManager::eventHook(DMTCP_EVENT_PRE_SUSPEND_USER_THREAD, NULL);
+}
+
+void
+DmtcpWorker::preResumeUserThread(int isRestart)
+{
+  DmtcpEventData_t edata;
+  edata.resumeUserThreadInfo.isRestart = isRestart;
+  PluginManager::eventHook(DMTCP_EVENT_RESUME_USER_THREAD, &edata);
+  ThreadSync::setOkToGrabLock();
+  // This should be the last significant work before returning from this
+  // function.
+  ThreadSync::processPreResumeCB();
 }
 void
 DmtcpWorker::acknowledgeSuspendMsg()
@@ -495,8 +512,8 @@ DmtcpWorker::acknowledgeSuspendMsg()
     _exit(0);
   }
 
-  JASSERT(msg.type == DMT_COMPUTATION_INFO) (msg.type);
-  JTRACE("Computation information") (msg.compGroup) (msg.numPeers);
+  JASSERT(msg.type == DMT_COMPUTATION_INFO)(msg.type);
+  JTRACE("Computation information")(msg.compGroup)(msg.numPeers);
   ProcessInfo::instance().compGroup(msg.compGroup);
   ProcessInfo::instance().numPeers(msg.numPeers);
 }
@@ -512,8 +529,6 @@ DmtcpWorker::waitForCheckpointRequest()
   PluginManager::eventHook(DMTCP_EVENT_WAIT_FOR_CKPT, NULL);
   JTRACE("got SUSPEND message, preparing to acquire all ThreadSync locks");
   ThreadSync::acquireLocks();
-
-
 
   JTRACE("Starting checkpoint, suspending...");
 }

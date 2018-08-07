@@ -1,3 +1,4 @@
+#include "config.h"
 #include <linux/version.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -219,8 +220,12 @@ ThreadList::init()
 
 // Called from:  threadwrappers.cpp:__clone()
 void
-ThreadList::initThread(Thread *th, int (*fn)(
-                         void *), void *arg, int flags, int *ptid, int *ctid)
+ThreadList::initThread(Thread* th,
+                       int (*fn)(void*),
+                       void* arg,
+                       int flags,
+                       int* ptid,
+                       int* ctid)
 {
   /* Save exactly what the caller is supplying */
   th->fn = fn;
@@ -248,7 +253,7 @@ ThreadList::threadExit()
  *
  *****************************************************************************/
 void
-ThreadList::updateTid(Thread *th)
+ThreadList::updateTid(Thread* th)
 {
   if (curThread == NULL) {
     curThread = th;
@@ -272,7 +277,7 @@ ThreadList::updateTid(Thread *th)
    */
   TLSInfo_UpdatePid();
 
-  JTRACE("starting thread") (th->tid) (th->virtual_tid);
+  JTRACE("starting thread")(th->tid)(th->virtual_tid);
 
   // Check and remove any thread descriptor which has the same tid as ours.
   // Also, remove any dead threads from the list.
@@ -287,7 +292,7 @@ ThreadList::updateTid(Thread *th)
 void
 ThreadList::killCkpthread()
 {
-  JTRACE("Kill checkpointhread") (ckptThread->tid);
+  JTRACE("Kill checkpointhread")(ckptThread->tid);
   THREAD_TGKILL(motherpid, ckptThread->tid, SigInfo::ckptSignal());
 }
 
@@ -297,7 +302,7 @@ ThreadList::killCkpthread()
  *
  *************************************************************************/
 static void
-prepareMtcpHeader(MtcpHeader *mtcpHdr)
+prepareMtcpHeader(MtcpHeader* mtcpHdr)
 {
   memset(mtcpHdr, 0, sizeof(*mtcpHdr));
   strncpy(mtcpHdr->signature, MTCP_SIGNATURE, strlen(MTCP_SIGNATURE) + 1);
@@ -305,13 +310,13 @@ prepareMtcpHeader(MtcpHeader *mtcpHdr)
 
   // TODO: Now that we have a separate mtcp dir, the code dealing with
   // restoreBuf should go in there.
-  mtcpHdr->restore_addr = (void *)ProcessInfo::instance().restoreBufAddr();
+  mtcpHdr->restore_addr = (void*)ProcessInfo::instance().restoreBufAddr();
   mtcpHdr->restore_size = ProcessInfo::instance().restoreBufLen();
 
-  mtcpHdr->vdsoStart = (void *)ProcessInfo::instance().vdsoStart();
-  mtcpHdr->vdsoEnd = (void *)ProcessInfo::instance().vdsoEnd();
-  mtcpHdr->vvarStart = (void *)ProcessInfo::instance().vvarStart();
-  mtcpHdr->vvarEnd = (void *)ProcessInfo::instance().vvarEnd();
+  mtcpHdr->vdsoStart = (void*)ProcessInfo::instance().vdsoStart();
+  mtcpHdr->vdsoEnd = (void*)ProcessInfo::instance().vdsoEnd();
+  mtcpHdr->vvarStart = (void*)ProcessInfo::instance().vvarStart();
+  mtcpHdr->vvarEnd = (void*)ProcessInfo::instance().vvarEnd();
 
   mtcpHdr->post_restart = &ThreadList::postRestart;
   mtcpHdr->post_restart_debug = &ThreadList::postRestartDebug;
@@ -351,8 +356,8 @@ ThreadList::writeCkpt()
  *    seconds, then wakes to write the checkpoint file.
  *
  *************************************************************************/
-static void *
-checkpointhread(void *dummy)
+static void*
+checkpointhread(void* dummy)
 {
   /* This is the start function of the checkpoint thread.
    * We also call sigsetjmp/getcontext to get a snapshot of this call frame,
@@ -374,16 +379,16 @@ checkpointhread(void *dummy)
    * signals
    */
   {
-    /*
-     * For the checkpoint thread, we should not block SIGSETXID which is used
-     * by the setsid family of system calls to change the session leader. Glibc
-     * uses this signal to notify the process threads of the change in session
-     * leader information. This signal is not documented and is used internally
-     * by glibc. It is defined in <glibc-src-root>/nptl/pthreadP.h
-     * screen was getting affected by this since it used setsid to change the
-     * session leaders.
-     * Similarly, SIGCANCEL/SIGTIMER is undocumented, but used by glibc.
-     */
+  /*
+   * For the checkpoint thread, we should not block SIGSETXID which is used
+   * by the setsid family of system calls to change the session leader. Glibc
+   * uses this signal to notify the process threads of the change in session
+   * leader information. This signal is not documented and is used internally
+   * by glibc. It is defined in <glibc-src-root>/nptl/pthreadP.h
+   * screen was getting affected by this since it used setsid to change the
+   * session leaders.
+   * Similarly, SIGCANCEL/SIGTIMER is undocumented, but used by glibc.
+   */
 #define SIGSETXID (__SIGRTMIN + 1)
 #define SIGCANCEL (__SIGRTMIN) /* aka SIGTIMER */
     sigset_t set;
@@ -400,13 +405,13 @@ checkpointhread(void *dummy)
 
   /* Set up our restart point.  I.e., we get jumped to here after a restore. */
 #ifdef SETJMP
-  JASSERT(sigsetjmp(ckptThread->jmpbuf, 1) >= 0) (JASSERT_ERRNO);
-#else // ifdef SETJMP
-  JASSERT(getcontext(&ckptThread->savctx) == 0) (JASSERT_ERRNO);
+  JASSERT(sigsetjmp(ckptThread->jmpbuf, 1) >= 0)(JASSERT_ERRNO);
+#else  // ifdef SETJMP
+  JASSERT(getcontext(&ckptThread->savctx) == 0)(JASSERT_ERRNO);
 #endif // ifdef SETJMP
   save_sp(&ckptThread->saved_sp);
   JTRACE("after sigsetjmp/getcontext")
-    (curThread->tid) (curThread->virtual_tid) (curThread->saved_sp);
+  (curThread->tid)(curThread->virtual_tid)(curThread->saved_sp);
 
   if (originalstartup) {
     originalstartup = false;
@@ -452,13 +457,13 @@ static void
 suspendThreads()
 {
   int needrescan;
-  Thread *thread;
-  Thread *next;
+  Thread* thread;
+  Thread* next;
 
-  JASSERT(pthread_rwlock_destroy(&threadResumeLock) == 0) (JASSERT_ERRNO);
+  JASSERT(pthread_rwlock_destroy(&threadResumeLock) == 0)(JASSERT_ERRNO);
   JASSERT(pthread_rwlock_init(&threadResumeLock, NULL) == 0)
-    (JASSERT_ERRNO);
-  JASSERT(_real_pthread_rwlock_wrlock(&threadResumeLock) == 0) (JASSERT_ERRNO);
+  (JASSERT_ERRNO);
+  JASSERT(_real_pthread_rwlock_wrlock(&threadResumeLock) == 0)(JASSERT_ERRNO);
 
   /* Halt all other threads - force them to call stopthisthread
    * If any have blocked checkpointing, wait for them to unblock before
@@ -474,52 +479,53 @@ suspendThreads()
 
       /* Do various things based on thread's state */
       switch (thread->state) {
-      case ST_RUNNING:
+        case ST_RUNNING:
 
-        /* Thread is running. Send it a signal so it will call stopthisthread.
-         * We will need to rescan (hopefully it will be suspended by then)
-         */
-        if (Thread_UpdateState(thread, ST_SIGNALED, ST_RUNNING)) {
-          if (THREAD_TGKILL(motherpid, thread->tid,
-                            SigInfo::ckptSignal()) < 0) {
-            JASSERT(errno == ESRCH) (JASSERT_ERRNO) (thread->tid)
-            .Text("error signalling thread");
+          /* Thread is running. Send it a signal so it will call stopthisthread.
+           * We will need to rescan (hopefully it will be suspended by then)
+           */
+          if (Thread_UpdateState(thread, ST_SIGNALED, ST_RUNNING)) {
+            if (THREAD_TGKILL(motherpid, thread->tid, SigInfo::ckptSignal()) <
+                0) {
+              JASSERT(errno == ESRCH)
+              (JASSERT_ERRNO)(thread->tid).Text("error signalling thread");
+              ThreadList::threadIsDead(thread);
+            } else {
+              needrescan = 1;
+            }
+          }
+          break;
+
+        case ST_ZOMBIE:
+          ret = THREAD_TGKILL(motherpid, thread->tid, 0);
+          JASSERT(ret == 0 || errno == ESRCH);
+          if (ret == -1 && errno == ESRCH) {
+            ThreadList::threadIsDead(thread);
+          }
+          break;
+
+        case ST_SIGNALED:
+          if (THREAD_TGKILL(motherpid, thread->tid, 0) == -1 &&
+              errno == ESRCH) {
             ThreadList::threadIsDead(thread);
           } else {
             needrescan = 1;
           }
-        }
-        break;
+          break;
 
-      case ST_ZOMBIE:
-        ret = THREAD_TGKILL(motherpid, thread->tid, 0);
-        JASSERT(ret == 0 || errno == ESRCH);
-        if (ret == -1 && errno == ESRCH) {
-          ThreadList::threadIsDead(thread);
-        }
-        break;
+        case ST_SUSPINPROG:
+          numUserThreads++;
+          break;
 
-      case ST_SIGNALED:
-        if (THREAD_TGKILL(motherpid, thread->tid, 0) == -1 && errno == ESRCH) {
-          ThreadList::threadIsDead(thread);
-        } else {
-          needrescan = 1;
-        }
-        break;
+        case ST_SUSPENDED:
+          numUserThreads++;
+          break;
 
-      case ST_SUSPINPROG:
-        numUserThreads++;
-        break;
+        case ST_CKPNTHREAD:
+          break;
 
-      case ST_SUSPENDED:
-        numUserThreads++;
-        break;
-
-      case ST_CKPNTHREAD:
-        break;
-
-      default:
-        JASSERT(false);
+        default:
+          JASSERT(false);
       }
     }
     if (needrescan) {
@@ -533,7 +539,7 @@ suspendThreads()
   }
 
   JASSERT(activeThreads != NULL);
-  JTRACE("everything suspended") (numUserThreads);
+  JTRACE("everything suspended")(numUserThreads);
 }
 
 /* Resume all threads. */
@@ -541,7 +547,7 @@ static void
 resumeThreads()
 {
   JTRACE("resuming everything");
-  JASSERT(_real_pthread_rwlock_unlock(&threadResumeLock) == 0) (JASSERT_ERRNO);
+  JASSERT(_real_pthread_rwlock_unlock(&threadResumeLock) == 0)(JASSERT_ERRNO);
   JTRACE("everything resumed");
 }
 
@@ -579,8 +585,8 @@ stopthisthread(int signum)
   // make sure we don't get called twice for same thread
   if (Thread_UpdateState(curThread, ST_SUSPINPROG, ST_SIGNALED)) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 11)
-    JWARNING(prctl(PR_GET_NAME, curThread->procname) != -1) (JASSERT_ERRNO)
-    .Text("prctl(PR_GET_NAME, ...) failed");
+    JWARNING(prctl(PR_GET_NAME, curThread->procname) != -1)
+    (JASSERT_ERRNO).Text("prctl(PR_GET_NAME, ...) failed");
 #endif // if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 11)
 
     Thread_SaveSigState(curThread); // save sig state (and block sig delivery)
@@ -590,14 +596,14 @@ stopthisthread(int signum)
     /* Set up our restart point, ie, we get jumped to here after a restore */
 #ifdef SETJMP
     JASSERT(sigsetjmp(curThread->jmpbuf, 1) >= 0);
-#else // ifdef SETJMP
+#else  // ifdef SETJMP
     JASSERT(getcontext(&curThread->savctx) == 0);
 #endif // ifdef SETJMP
     save_sp(&curThread->saved_sp);
 
     JTRACE("Thread after sigsetjmp/getcontext")
-      (curThread->tid) (curThread->virtual_tid)
-      (curThread->saved_sp) (__builtin_return_address(0));
+    (curThread->tid)(curThread->virtual_tid)(curThread->saved_sp)(
+      __builtin_return_address(0));
 
     if (!restoreInProgress) {
       /* We are a user thread and all context is saved.
@@ -608,14 +614,14 @@ stopthisthread(int signum)
       JASSERT(Thread_UpdateState(curThread, ST_SUSPENDED, ST_SUSPINPROG));
       sem_post(&semNotifyCkptThread);
       /* This sets a static variable in dmtcp.  It must be passed
-      * from this user thread to ckpt thread before writing ckpt image
-      */
+       * from this user thread to ckpt thread before writing ckpt image
+       */
       if (dmtcp_ptrace_enabled != NULL && dmtcp_ptrace_enabled()) {
         DmtcpWorker::preSuspendUserThread();
       }
 
       /* Then wait for the ckpt thread to write the ckpt file then wake us up */
-      JTRACE("User thread suspended") (curThread->tid);
+      JTRACE("User thread suspended")(curThread->tid);
 
       // We can't use sem_wait here because sem_wait registers a cleanup
       // handler before going into blocking wait. The handler is popped before
@@ -627,27 +633,26 @@ stopthisthread(int signum)
       // segfault.
       // The change in sem_wait behavior was first introduce in glibc 2.21.
       JASSERT(_real_pthread_rwlock_rdlock(&threadResumeLock) == 0)
-        (JASSERT_ERRNO);
+      (JASSERT_ERRNO);
 
       JASSERT(Thread_UpdateState(curThread, ST_RUNNING, ST_SUSPENDED));
 
       JASSERT(_real_pthread_rwlock_unlock(&threadResumeLock) == 0)
-        (JASSERT_ERRNO);
+      (JASSERT_ERRNO);
     } else {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 11)
       if (!Util::strStartsWith(curThread->procname, DMTCP_PRGNAME_PREFIX)) {
         // Add the "DMTCP:" prefix.
         string newName = string(DMTCP_PRGNAME_PREFIX) + curThread->procname;
-        strncpy(curThread->procname,
-                newName.c_str(),
-                sizeof(curThread->procname));
+        strncpy(
+          curThread->procname, newName.c_str(), sizeof(curThread->procname));
 
         // Add a NULL at the end to make sure the string terminates in all cases
         curThread->procname[sizeof(curThread->procname) - 1] = '\0';
       }
       JASSERT(prctl(PR_SET_NAME, curThread->procname) != -1 || errno == EINVAL)
-        (curThread->procname) (JASSERT_ERRNO)
-      .Text("prctl(PR_SET_NAME, ...) failed");
+      (curThread->procname)(JASSERT_ERRNO)
+        .Text("prctl(PR_SET_NAME, ...) failed");
 #endif // if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 11)
 
       JASSERT(Thread_UpdateState(curThread, ST_RUNNING, ST_SUSPENDED));
@@ -656,8 +661,9 @@ stopthisthread(int signum)
       ThreadList::waitForAllRestored(curThread);
     }
 
+    DmtcpWorker::preResumeUserThread(restoreInProgress);
     JTRACE("User thread returning to user code")
-      (curThread->tid) (__builtin_return_address(0));
+    (curThread->tid)(__builtin_return_address(0));
   }
 }
 
@@ -668,7 +674,7 @@ stopthisthread(int signum)
  *
  *****************************************************************************/
 void
-ThreadList::waitForAllRestored(Thread *thread)
+ThreadList::waitForAllRestored(Thread* thread)
 {
   if (thread == ckptThread) {
     int i;
@@ -713,7 +719,7 @@ ThreadList::waitForAllRestored(Thread *thread)
 
   if (thread == motherofall) {
     /* If DMTCP_RESTART_PAUSE==4, sleep 15 seconds to allow gdb attach.*/
-    char * pause_param = getenv("DMTCP_RESTART_PAUSE");
+    char* pause_param = getenv("DMTCP_RESTART_PAUSE");
     if (pause_param == NULL) {
       pause_param = getenv("MTCP_RESTART_PAUSE");
     }
@@ -721,14 +727,14 @@ ThreadList::waitForAllRestored(Thread *thread)
         pause_param[1] == '\0') {
 #ifdef HAS_PR_SET_PTRACER
       prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0); // For: gdb attach
-#endif // ifdef HAS_PR_SET_PTRACER
+#endif                                   // ifdef HAS_PR_SET_PTRACER
       struct timespec delay = { 15, 0 }; /* 15 seconds */
       printf("Pausing 15 seconds. Do:  gdb <PROGNAME> %d\n",
              dmtcp_virtual_to_real_pid(getpid()));
       nanosleep(&delay, NULL);
 #ifdef HAS_PR_SET_PTRACER
       prctl(PR_SET_PTRACER, 0, 0, 0, 0); // Revert permission to default.
-#endif // ifdef HAS_PR_SET_PTRACER
+#endif                                   // ifdef HAS_PR_SET_PTRACER
     }
   }
 }
@@ -746,8 +752,9 @@ ThreadList::postRestartDebug(double readTime)
   printf("**        If GDB doesn't show source, re-configure and re-compile\n");
 #endif
   // If we're here, user set env. to DMTCP_RESTART_PAUSE=4, & is expecting this.
-  while (dummy);
-  // User should have done GDB attach if we're here.
+  while (dummy)
+    ;
+    // User should have done GDB attach if we're here.
 #ifdef HAS_PR_SET_PTRACER
   prctl(PR_SET_PTRACER, 0, 0, 0, 0); // Revert permission to default: no ptracer
 #endif
@@ -757,25 +764,25 @@ ThreadList::postRestartDebug(double readTime)
 void
 ThreadList::postRestart(double readTime)
 {
-  Thread *thread;
+  Thread* thread;
   sigset_t tmp;
 
   /* If DMTCP_RESTART_PAUSE==2, sleep 15 seconds and allow gdb attach. */
-  char * pause_param = getenv("DMTCP_RESTART_PAUSE");
+  char* pause_param = getenv("DMTCP_RESTART_PAUSE");
   if (pause_param == NULL) {
     pause_param = getenv("MTCP_RESTART_PAUSE");
   }
   if (pause_param != NULL && pause_param[0] == '2' && pause_param[1] == '\0') {
 #ifdef HAS_PR_SET_PTRACER
     prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0); // Allow 'gdb attach'
-#endif // ifdef HAS_PR_SET_PTRACER
+#endif                                 // ifdef HAS_PR_SET_PTRACER
     struct timespec delay = { 15, 0 }; /* 15 seconds */
     printf("Pausing 15 seconds. Do:  gdb <PROGNAME> %ld\n",
            (long)THREAD_REAL_TID());
     nanosleep(&delay, NULL);
 #ifdef HAS_PR_SET_PTRACER
-    prctl(PR_SET_PTRACER, 0, 0, 0, 0);   // Revert permission to default.
-#endif // ifdef HAS_PR_SET_PTRACER
+    prctl(PR_SET_PTRACER, 0, 0, 0, 0); // Revert permission to default.
+#endif                                 // ifdef HAS_PR_SET_PTRACER
   }
 
   SharedData::postRestart();
@@ -807,7 +814,7 @@ ThreadList::postRestart(double readTime)
      *  (clonearg->arg) from clone_arg and will pass it on to the real
      *  clone call.
      */
-    void *clonearg = thread;
+    void* clonearg = thread;
     if (dmtcp_real_to_virtual_pid != NULL) {
       mtcpRestartThreadArg.arg = thread;
       mtcpRestartThreadArg.virtualTid = thread->virtual_tid;
@@ -819,15 +826,18 @@ ThreadList::postRestart(double readTime)
     pid_t tid = _real_clone(restarthread,
 
                             // -128 for red zone
-                            (void *)((char *)thread->saved_sp - 128),
+                            (void*)((char*)thread->saved_sp - 128),
 
                             /* Don't do CLONE_SETTLS (it'll puke).  We do it
                              * later via restoreTLSState. */
                             thread->flags & ~CLONE_SETTLS,
-                            clonearg, thread->ptid, NULL, thread->ctid);
+                            clonearg,
+                            thread->ptid,
+                            NULL,
+                            thread->ctid);
 
-    JASSERT(tid > 0);  // (JASSERT_ERRNO) .Text("Error recreating thread");
-    JTRACE("Thread recreated") (thread->tid) (tid);
+    JASSERT(tid > 0); // (JASSERT_ERRNO) .Text("Error recreating thread");
+    JTRACE("Thread recreated")(thread->tid)(tid);
   }
   restarthread(motherofall);
 }
@@ -836,9 +846,9 @@ ThreadList::postRestart(double readTime)
  *
  *****************************************************************************/
 static int
-restarthread(void *threadv)
+restarthread(void* threadv)
 {
-  Thread *thread = (Thread *)threadv;
+  Thread* thread = (Thread*)threadv;
 
   thread->tid = THREAD_REAL_TID();
 
@@ -851,7 +861,7 @@ restarthread(void *threadv)
 
   if (thread == motherofall) { // if this is a user thread
     /* If DMTCP_RESTART_PAUSE==3, sleep 15 seconds to allow gdb attach.*/
-    char * pause_param = getenv("DMTCP_RESTART_PAUSE");
+    char* pause_param = getenv("DMTCP_RESTART_PAUSE");
     if (pause_param == NULL) {
       pause_param = getenv("MTCP_RESTART_PAUSE");
     }
@@ -859,14 +869,14 @@ restarthread(void *threadv)
         pause_param[1] == '\0') {
 #ifdef HAS_PR_SET_PTRACER
       prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0); // For: gdb attach
-#endif // ifdef HAS_PR_SET_PTRACER
+#endif                                   // ifdef HAS_PR_SET_PTRACER
       struct timespec delay = { 15, 0 }; /* 15 seconds */
       printf("Pausing 15 seconds. Do:  gdb <PROGNAME> %d\n",
              dmtcp_virtual_to_real_pid(getpid()));
       nanosleep(&delay, NULL);
 #ifdef HAS_PR_SET_PTRACER
       prctl(PR_SET_PTRACER, 0, 0, 0, 0); // Revert permission to default.
-#endif // ifdef HAS_PR_SET_PTRACER
+#endif                                   // ifdef HAS_PR_SET_PTRACER
     }
   }
 
@@ -874,21 +884,21 @@ restarthread(void *threadv)
    * Note that if this is the restored checkpointhread, it jumps to the
    * checkpointhread routine
    */
-  JTRACE("calling siglongjmp/setcontext") (thread->tid) (thread->virtual_tid);
+  JTRACE("calling siglongjmp/setcontext")(thread->tid)(thread->virtual_tid);
 #ifdef SETJMP
   siglongjmp(thread->jmpbuf, 1); /* Shouldn't return */
-#else // ifdef SETJMP
+#else                            // ifdef SETJMP
   setcontext(&thread->savctx); /* Shouldn't return */
-#endif // ifdef SETJMP
+#endif                           // ifdef SETJMP
   JASSERT(false);
-  return 0;   /* NOTREACHED : stop compiler warning */
+  return 0; /* NOTREACHED : stop compiler warning */
 }
 
 /*****************************************************************************
  *
  *****************************************************************************/
 int
-Thread_UpdateState(Thread *th, ThreadState newval, ThreadState oldval)
+Thread_UpdateState(Thread* th, ThreadState newval, ThreadState oldval)
 {
   int res = 0;
 
@@ -907,7 +917,7 @@ Thread_UpdateState(Thread *th, ThreadState newval, ThreadState oldval)
  *
  *****************************************************************************/
 void
-Thread_SaveSigState(Thread *th)
+Thread_SaveSigState(Thread* th)
 {
   // Save signal block mask
   JASSERT(pthread_sigmask(SIG_SETMASK, NULL, &th->sigblockmask) == 0);
@@ -922,11 +932,11 @@ Thread_SaveSigState(Thread *th)
  *
  *****************************************************************************/
 void
-Thread_RestoreSigState(Thread *th)
+Thread_RestoreSigState(Thread* th)
 {
   int i;
 
-  JTRACE("restoring signal mask for thread") (th->virtual_tid);
+  JTRACE("restoring signal mask for thread")(th->virtual_tid);
   JASSERT(pthread_sigmask(SIG_SETMASK, &th->sigblockmask, NULL) == 0);
 
   // Raise the signals which were pending for only this thread at the time of
@@ -953,11 +963,11 @@ Thread_RestoreSigState(Thread *th)
  *
  *****************************************************************************/
 void
-ThreadList::addToActiveList(Thread *th)
+ThreadList::addToActiveList(Thread* th)
 {
   int tid;
-  Thread *thread;
-  Thread *next_thread;
+  Thread* thread;
+  Thread* next_thread;
 
   lock_threads();
 
@@ -988,7 +998,7 @@ ThreadList::addToActiveList(Thread *th)
     next_thread = thread->next;
     if (thread != curThread && thread->tid == tid) {
       JTRACE("Removing duplicate thread descriptor")
-        (thread->tid) (thread->virtual_tid);
+      (thread->tid)(thread->virtual_tid);
 
       // There will be at most one duplicate descriptor.
       threadIsDead(thread);
@@ -1007,7 +1017,7 @@ ThreadList::addToActiveList(Thread *th)
     if (thread->state == ST_ZOMBIE) {
       /* if no thread with this tid, then we can remove zombie descriptor */
       if (-1 == THREAD_TGKILL(motherpid, thread->tid, 0)) {
-        JTRACE("Killing zombie thread") (thread->tid);
+        JTRACE("Killing zombie thread")(thread->tid);
         threadIsDead(thread);
       }
     }
@@ -1037,10 +1047,10 @@ ThreadList::addToActiveList(Thread *th)
  *
  *****************************************************************************/
 void
-ThreadList::threadIsDead(Thread *thread)
+ThreadList::threadIsDead(Thread* thread)
 {
   JASSERT(thread != NULL);
-  JTRACE("Putting thread on freelist") (thread->tid);
+  JTRACE("Putting thread on freelist")(thread->tid);
 
   /* Remove thread block from 'threads' list */
   if (thread->prev != NULL) {
@@ -1062,14 +1072,14 @@ ThreadList::threadIsDead(Thread *thread)
  * Return thread from freelist.
  *
  *****************************************************************************/
-Thread *
+Thread*
 ThreadList::getNewThread()
 {
-  Thread *thread;
+  Thread* thread;
 
   lock_threads();
   if (threads_freelist == NULL) {
-    thread = (Thread *)JALLOC_HELPER_MALLOC(sizeof(Thread));
+    thread = (Thread*)JALLOC_HELPER_MALLOC(sizeof(Thread));
     JASSERT(thread != NULL);
   } else {
     thread = threads_freelist;
@@ -1091,7 +1101,7 @@ ThreadList::emptyFreeList()
   lock_threads();
 
   while (threads_freelist != NULL) {
-    Thread *thread = threads_freelist;
+    Thread* thread = threads_freelist;
     threads_freelist = threads_freelist->next;
     JALLOC_HELPER_FREE(thread);
   }

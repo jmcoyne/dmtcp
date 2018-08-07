@@ -20,86 +20,87 @@
  *****************************************************************************/
 
 #include "ptrace.h"
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "dmtcp.h"
 #include "jalloc.h"
 #include "jassert.h"
-#include "dmtcp.h"
 #include "ptraceinfo.h"
 #include "util.h"
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using namespace dmtcp;
 
 static int originalStartup = 1;
 
 EXTERNC int
-dmtcp_ptrace_enabled() { return 1; }
+dmtcp_ptrace_enabled()
+{
+  return 1;
+}
 
 void
 ptraceInit()
 {
-  // PtraceInfo::instance().createSharedFile();
-  // PtraceInfo::instance().mapSharedFile();
+  PtraceInfo::instance().createSharedFile();
+  PtraceInfo::instance().mapSharedFile();
 }
 
 void
-ptraceWaitForSuspendMsg(DmtcpEventData_t *data)
+ptraceWaitForSuspendMsg(DmtcpEventData_t* data)
 {
-  // PtraceInfo::instance().markAsCkptThread();
+  PtraceInfo::instance().markAsCkptThread();
 
   if (!originalStartup) {
-  // PtraceInfo::instance().waitForSuperiorAttach();
+    PtraceInfo::instance().waitForSuperiorAttach();
   } else {
     originalStartup = 0;
   }
 }
 
 void
-ptraceProcessResumeUserThread(DmtcpEventData_t *data)
+ptraceProcessResumeUserThread(DmtcpEventData_t* data)
 {
-// ptrace_process_resume_user_thread(data->resumeUserThreadInfo.isRestart);
+  ptrace_process_resume_user_thread(data->resumeUserThreadInfo.isRestart);
 }
 
 static void
-dmtcp_ptrace_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data)
+dmtcp_ptrace_event_hook(DmtcpEvent_t event, DmtcpEventData_t* data)
 {
   switch (event) {
-  case DMTCP_EVENT_INIT:
-    // ptraceInit();
-    printf("\n*** The init event has been called   ***\n");
-    break;
+    case DMTCP_EVENT_INIT:
+      ptraceInit();
+      printf("\n*** The init event has been called   ***\n");
+      break;
 
-  case DMTCP_EVENT_WAIT_FOR_CKPT:
-    printf("\n*** The wait for checkpoint event has been called   ***\n");
-    // ptraceWaitForSuspendMsg(data);
-    break;
+    case DMTCP_EVENT_WAIT_FOR_CKPT:
+      printf("\n*** The wait for checkpoint event has been called   ***\n");
+      ptraceWaitForSuspendMsg(data);
+      break;
 
-  case DMTCP_EVENT_PRE_SUSPEND_USER_THREAD:
-    printf("\n*** The event pre_suspend user thread has been called   ***\n");
-    // ptrace_process_pre_suspend_user_thread();
+    case DMTCP_EVENT_PRE_SUSPEND_USER_THREAD:
+      printf("\n*** The event pre_suspend user thread has been called   ***\n");
+      ptrace_process_pre_suspend_user_thread();
 
-    break;
+      break;
 
-  case DMTCP_EVENT_RESUME_USER_THREAD:
-    printf("\n*** The event resume user thread has been called   ***\n");
-    // ptraceProcessResumeUserThread(data);
-    break;
+    case DMTCP_EVENT_RESUME_USER_THREAD:
+      printf("\n*** The event resume user thread has been called   ***\n");
+      ptraceProcessResumeUserThread(data);
+      break;
 
-  case DMTCP_EVENT_ATFORK_CHILD:
-    originalStartup = 1;
+    case DMTCP_EVENT_ATFORK_CHILD:
+      originalStartup = 1;
       printf("\n*** The event atfork event has been called   ***\n");
-    break;
+      break;
 
-  default:
-    break;
+    default:
+      break;
   }
 }
 static void
 checkpoint()
 {
   printf("\n*** The plugin is being called before checkpointing. ***\n");
-  // ptraceWaitForSuspendMsg(data);
-  printf("\n*** WaitForSuspend called. ***\n");
 }
 
 static void
@@ -115,19 +116,17 @@ restart()
 }
 
 static DmtcpBarrier barriers[] = {
-        { DMTCP_GLOBAL_BARRIER_PRE_CKPT, checkpoint, "checkpoint" },
-        { DMTCP_GLOBAL_BARRIER_RESUME, resume, "resume" },
-        { DMTCP_GLOBAL_BARRIER_RESTART, restart, "restart" }
+  { DMTCP_GLOBAL_BARRIER_PRE_CKPT, checkpoint, "checkpoint" },
+  { DMTCP_GLOBAL_BARRIER_RESUME, resume, "resume" },
+  { DMTCP_GLOBAL_BARRIER_RESTART, restart, "restart" }
 };
-DmtcpPluginDescriptor_t ptrace_plugin = {
-        DMTCP_PLUGIN_API_VERSION,
-        DMTCP_PACKAGE_VERSION,
-        "ptrace",
-        "DMTCP",
-        "dmtcp@ccs.neu.edu",
-        "Ptrace plugin",
-        DMTCP_DECL_BARRIERS(barriers),
-        dmtcp_ptrace_event_hook
-};
+DmtcpPluginDescriptor_t ptrace_plugin = { DMTCP_PLUGIN_API_VERSION,
+                                          DMTCP_PACKAGE_VERSION,
+                                          "ptrace",
+                                          "DMTCP",
+                                          "dmtcp@ccs.neu.edu",
+                                          "Ptrace plugin",
+                                          DMTCP_DECL_BARRIERS(barriers),
+                                          dmtcp_ptrace_event_hook };
 
 DMTCP_DECL_PLUGIN(ptrace_plugin);
