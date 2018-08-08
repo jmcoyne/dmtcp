@@ -135,7 +135,10 @@ ptrace_process_pre_suspend_user_thread()
 void
 ptrace_process_resume_user_thread(int isRestart)
 {
+  JNOTE("\n*** In resume User thread ***\n");
+
   if (PtraceInfo::instance().isPtracing()) {
+    JNOTE("\n*** In resume User thread :: Ptracing ***\n");
     ptrace_attach_threads(isRestart);
   }
   JTRACE("Waiting for Sup Attach") (GETTID());
@@ -154,9 +157,10 @@ ptrace_attach_threads(int isRestart)
 
   inferiors = PtraceInfo::instance().getInferiorVector(GETTID());
   if (inferiors.size() == 0) {
+    JNOTE("\n*** In attach thread  inferiors is 0 ***\n");
     return;
   }
-
+  JNOTE("\n*** In attach thread  inferiors is NOT  0 ***\n");
   JTRACE("Attaching to inferior threads") (GETTID()) (inferiors.size());
 
   // Attach to all inferior user threads.
@@ -281,6 +285,7 @@ ptrace_wait_for_inferior_to_reach_syscall(pid_t inferior, int sysno)
       break;
     }
   }
+  return;
 }
 
 static void

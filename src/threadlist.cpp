@@ -1,4 +1,3 @@
-#include "config.h"
 #include <linux/version.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -609,7 +608,9 @@ stopthisthread(int signum)
       /* We are a user thread and all context is saved.
        * Wait for ckpt thread to write ckpt, and resume.
        */
-
+      if (dmtcp_ptrace_enabled == NULL) {
+        DmtcpWorker::preSuspendUserThread();
+      }
       /* Tell the checkpoint thread that we're all saved away */
       JASSERT(Thread_UpdateState(curThread, ST_SUSPENDED, ST_SUSPINPROG));
       sem_post(&semNotifyCkptThread);
@@ -752,9 +753,8 @@ ThreadList::postRestartDebug(double readTime)
   printf("**        If GDB doesn't show source, re-configure and re-compile\n");
 #endif
   // If we're here, user set env. to DMTCP_RESTART_PAUSE=4, & is expecting this.
-  while (dummy)
-    ;
-    // User should have done GDB attach if we're here.
+  while (dummy);
+  // User should have done GDB attach if we're here.
 #ifdef HAS_PR_SET_PTRACER
   prctl(PR_SET_PTRACER, 0, 0, 0, 0); // Revert permission to default: no ptracer
 #endif

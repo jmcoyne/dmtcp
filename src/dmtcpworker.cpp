@@ -20,6 +20,9 @@
  ****************************************************************************/
 
 #include "dmtcpworker.h"
+#include <stdlib.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include "../jalib/jbuffer.h"
 #include "../jalib/jconvert.h"
 #include "../jalib/jfilesystem.h"

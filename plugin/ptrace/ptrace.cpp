@@ -20,13 +20,13 @@
  *****************************************************************************/
 
 #include "ptrace.h"
-#include "dmtcp.h"
-#include "jalloc.h"
-#include "jassert.h"
-#include "ptraceinfo.h"
-#include "util.h"
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "jalloc.h"
+#include "jassert.h"
+#include "dmtcp.h"
+#include "ptraceinfo.h"
+#include "util.h"
 
 using namespace dmtcp;
 
@@ -60,7 +60,11 @@ ptraceWaitForSuspendMsg(DmtcpEventData_t* data)
 void
 ptraceProcessResumeUserThread(DmtcpEventData_t* data)
 {
+  printf("\n*** Before ResumeUserThread  ***\n");
+  printf("\n*** Value of  data: %d  ***\n",
+         data->resumeUserThreadInfo.isRestart);
   ptrace_process_resume_user_thread(data->resumeUserThreadInfo.isRestart);
+  printf("\n*** After ResumeUserThread  ***\n");
 }
 
 static void
@@ -69,28 +73,28 @@ dmtcp_ptrace_event_hook(DmtcpEvent_t event, DmtcpEventData_t* data)
   switch (event) {
     case DMTCP_EVENT_INIT:
       ptraceInit();
-      printf("\n*** The init event has been called   ***\n");
+      printf("\n*** HOOK The init event has been called   ***\n");
       break;
 
     case DMTCP_EVENT_WAIT_FOR_CKPT:
-      printf("\n*** The wait for checkpoint event has been called   ***\n");
+      printf("\n*** HOOK The waitforcheckpoint event  called   ***\n");
       ptraceWaitForSuspendMsg(data);
       break;
 
     case DMTCP_EVENT_PRE_SUSPEND_USER_THREAD:
-      printf("\n*** The event pre_suspend user thread has been called   ***\n");
+      printf("\n*** HOOK  pre_suspend user thread  called ***\n");
       ptrace_process_pre_suspend_user_thread();
 
       break;
 
     case DMTCP_EVENT_RESUME_USER_THREAD:
-      printf("\n*** The event resume user thread has been called   ***\n");
+      printf("\n*** HOOK The event resume user thread has been called   ***\n");
       ptraceProcessResumeUserThread(data);
       break;
 
     case DMTCP_EVENT_ATFORK_CHILD:
       originalStartup = 1;
-      printf("\n*** The event atfork event has been called   ***\n");
+      printf("\n*** HOOK The event atfork event has been called   ***\n");
       break;
 
     default:
@@ -100,19 +104,19 @@ dmtcp_ptrace_event_hook(DmtcpEvent_t event, DmtcpEventData_t* data)
 static void
 checkpoint()
 {
-  printf("\n*** The plugin is being called before checkpointing. ***\n");
+  printf("\n*** BARRIER The plugin is  called before checkpointing. ***\n");
 }
 
 static void
 resume()
 {
-  printf("*** The application has now been checkpointed. ***\n");
+  printf("*** BARRIER The application has now been checkpointed. ***\n");
 }
 
 static void
 restart()
 {
-  printf("The application is now restarting from a checkpoint.\n");
+  printf("*** BARRIER The application is now restarting from a checkpoint.\n");
 }
 
 static DmtcpBarrier barriers[] = {
